@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   STORAGE_KEY,
+  addRecipeIteration,
   createInitialState,
   exportState,
+  findIteration,
   importState,
   loadState,
   saveState,
@@ -13,6 +15,18 @@ function createStorage() {
   return {
     getItem: (key) => values.get(key) ?? null,
     setItem: (key, value) => values.set(key, value),
+  };
+}
+
+function iteration(id, overrides = {}) {
+  return {
+    id,
+    dose: 18,
+    yieldGrams: 40,
+    grindSize: '4.2',
+    shotTime: 28,
+    lastAssignedAt: null,
+    ...overrides,
   };
 }
 
@@ -27,16 +41,17 @@ describe('state persistence', () => {
     expect(loadState(storage)).toEqual(createInitialState());
   });
 
-  it('saves and reloads recipes and program assignments', () => {
+  it('saves and reloads grouped recipes and program assignments', () => {
     const state = createInitialState();
     state.recipes.push({
-      id: 'shot-1',
+      id: 'recipe-1',
       coffee: 'Showcase Blend',
-      dose: 18,
-      yieldGrams: 40,
-      grindSize: '4.2',
-      shotTime: 28,
-      lastAssignedAt: '2026-07-16T00:00:00.000Z',
+      createdAt: '2026-07-16T00:00:00.000Z',
+      iterations: [
+        iteration('shot-1', {
+          lastAssignedAt: '2026-07-16T00:00:00.000Z',
+        }),
+      ],
     });
     state.programs.Down = 'shot-1';
 
@@ -44,6 +59,40 @@ describe('state persistence', () => {
 
     expect(JSON.parse(storage.getItem(STORAGE_KEY))).toEqual(state);
     expect(loadState(storage)).toEqual(state);
+  });
+
+  it('migrates flat recipes and groups duplicate coffee names as iterations', () => {
+    storage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        recipes: [
+          {
+            id: 'shot-1',
+            coffee: 'Showcase Blend',
+            dose: 18,
+            yield: 38,
+          },
+          {
+            id: 'shot-2',
+            coffee: ' showcase blend ',
+            dose: 18,
+            yieldGrams: 40,
+          },
+        ],
+        programs: { Down: 'shot-2' },
+      }),
+    );
+
+    const state = loadState(storage);
+
+    expect(state.recipes).toHaveLength(1);
+    expect(state.recipes[0].coffee).toBe('Showcase Blend');
+    expect(state.recipes[0].iterations.map(({ id }) => id)).toEqual([
+      'shot-1',
+      'shot-2',
+    ]);
+    expect(state.recipes[0].iterations[0].yieldGrams).toBe(38);
+    expect(state.programs.Down).toBe('shot-2');
   });
 
   it('migrates the original prototype storage keys', () => {
@@ -57,12 +106,13 @@ describe('state persistence', () => {
     );
 
     const state = loadState(storage);
+    const migrated = state.recipes[0].iterations[0];
 
     expect(state.recipes[0].coffee).toBe('Legacy Coffee');
-    expect(state.recipes[0].yieldGrams).toBe(42);
-    expect(state.recipes[0].grindSize).toBe('');
-    expect(state.recipes[0].shotTime).toBeNull();
-    expect(state.recipes[0].lastAssignedAt).toBeNull();
+    expect(migrated.yieldGrams).toBe(42);
+    expect(migrated.grindSize).toBe('');
+    expect(migrated.shotTime).toBeNull();
+    expect(migrated.lastAssignedAt).toBeNull();
     expect(state.programs['Long Up']).toBe(1);
   });
 
@@ -72,18 +122,39 @@ describe('state persistence', () => {
   });
 });
 
+describe('recipe iterations', () => {
+  it('adds same-name shots to one recipe regardless of case', () => {
+    const state = createInitialState();
+    addRecipeIteration(state, 'Showcase Blend', iteration('shot-1'));
+    addRecipeIteration(state, 'showcase blend', iteration('shot-2'));
+
+    expect(state.recipes).toHaveLength(1);
+    expect(state.recipes[0].coffee).toBe('Showcase Blend');
+    expect(state.recipes[0].iterations).toHaveLength(2);
+    expect(findIteration(state, 'shot-2')?.recipe.id).toBe(state.recipes[0].id);
+  });
+
+  it('creates a separate recipe when the name changes', () => {
+    const state = createInitialState();
+    addRecipeIteration(state, 'Showcase Blend', iteration('shot-1'));
+    addRecipeIteration(state, 'Single Origin', iteration('shot-2'));
+
+    expect(state.recipes).toHaveLength(2);
+  });
+});
+
 describe('backup files', () => {
   it('round-trips exported data', () => {
     const state = createInitialState();
-    state.recipes.push({
-      id: '1',
-      coffee: 'Colombia',
-      dose: 19,
-      yieldGrams: 44,
-      grindSize: '18 clicks',
-      shotTime: 31,
-      lastAssignedAt: '2026-07-16T01:00:00.000Z',
-    });
+    addRecipeIteration(
+      state,
+      'Colombia',
+      iteration('1', {
+        grindSize: '18 clicks',
+        shotTime: 31,
+        lastAssignedAt: '2026-07-16T01:00:00.000Z',
+      }),
+    );
 
     expect(importState(exportState(state))).toEqual(state);
   });
@@ -109,7 +180,8 @@ describe('backup files', () => {
       }),
     );
 
-    expect(state.recipes[0].lastAssignedAt).toBeNull();
-    expect(state.recipes[0]).not.toHaveProperty('lastBrewed');
+    const migrated = state.recipes[0].iterations[0];
+    expect(migrated.lastAssignedAt).toBeNull();
+    expect(migrated).not.toHaveProperty('lastBrewed');
   });
 });

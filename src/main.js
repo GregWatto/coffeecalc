@@ -2,7 +2,9 @@ import './styles.css';
 import { calculateDialIn, formatMeasurement } from './calculator.js';
 import {
   PROGRAM_NAMES,
+  addRecipeIteration,
   exportState,
+  findIteration,
   importState,
   loadState,
   saveState,
@@ -10,6 +12,7 @@ import {
 
 let state = loadState();
 let lastCalculation = null;
+let editingIterationId = null;
 let onlineSaveQueue = Promise.resolve();
 
 const app = document.querySelector('#app');
@@ -60,6 +63,7 @@ app.innerHTML = `
           <div class="field field-wide">
             <label for="coffee-name">Coffee name</label>
             <input id="coffee-name" name="coffee" type="text" maxlength="80" autocomplete="off" placeholder="e.g. Showcase Blend" required />
+            <small class="edit-context" id="edit-context" hidden>Editing a saved recipe. Saving will create a new iteration.</small>
           </div>
           <div class="field">
             <label for="grind-size">Grind size <span>setting</span></label>
@@ -307,6 +311,13 @@ function createProgramCard(programName, recipe) {
     recency.className = 'program-recency';
     recency.textContent = `Last assigned ${formatRecency(recipe.lastAssignedAt)}`;
     heading.append(recency);
+
+    const edit = document.createElement('button');
+    edit.className = 'button button-secondary program-edit';
+    edit.type = 'button';
+    edit.textContent = 'Edit recipe';
+    edit.addEventListener('click', () => editIteration(recipe.id));
+    heading.append(edit);
   }
   card.append(heading);
 
@@ -322,18 +333,20 @@ function renderDashboard() {
   const grid = byId('program-grid');
   grid.replaceChildren();
   PROGRAM_NAMES.forEach((programName) => {
-    const recipe = state.recipes.find(
-      (item) => String(item.id) === String(state.programs[programName]),
+    const match = findIteration(state, state.programs[programName]);
+    grid.append(
+      createProgramCard(
+        programName,
+        match ? { ...match.iteration, coffee: match.recipe.coffee } : null,
+      ),
     );
-    grid.append(createProgramCard(programName, recipe));
   });
   byId('dashboard-empty').hidden = state.recipes.length !== 0;
 }
 
 function assignedRecipe(programName) {
-  return state.recipes.find(
-    (item) => String(item.id) === String(state.programs[programName]),
-  );
+  const match = findIteration(state, state.programs[programName]);
+  return match ? { ...match.iteration, coffee: match.recipe.coffee } : null;
 }
 
 function createPrintRecipe(programName, recipe) {
@@ -425,34 +438,34 @@ function formatRecency(value) {
 }
 
 function assignRecipe(recipeId, programName) {
-  const recipe = state.recipes.find(
-    (item) => String(item.id) === String(recipeId),
-  );
-  if (!recipe) return;
+  const match = findIteration(state, recipeId);
+  if (!match) return;
 
   Object.entries(state.programs).forEach(([name, assignedId]) => {
-    const assigned = state.recipes.find(
-      (item) => String(item.id) === String(assignedId),
-    );
-    if (assigned?.coffee === recipe.coffee && name !== programName) {
+    const assigned = findIteration(state, assignedId);
+    if (assigned?.recipe.id === match.recipe.id && name !== programName) {
       state.programs[name] = null;
     }
   });
-  state.programs[programName] = recipe.id;
-  recipe.lastAssignedAt = new Date().toISOString();
+  state.programs[programName] = match.iteration.id;
+  match.iteration.lastAssignedAt = new Date().toISOString();
   persistAndRender();
-  showToast(`${recipe.coffee} assigned to ${programName}.`);
+  showToast(`${match.recipe.coffee} assigned to ${programName}.`);
 }
 
 function deleteRecipe(recipeId) {
-  const recipe = state.recipes.find(
-    (item) => String(item.id) === String(recipeId),
-  );
-  if (!recipe || !window.confirm(`Delete the saved shot for ${recipe.coffee}?`))
+  const match = findIteration(state, recipeId);
+  if (
+    !match ||
+    !window.confirm(`Delete this ${match.recipe.coffee} iteration?`)
+  )
     return;
 
-  state.recipes = state.recipes.filter(
+  match.recipe.iterations = match.recipe.iterations.filter(
     (item) => String(item.id) !== String(recipeId),
+  );
+  state.recipes = state.recipes.filter(
+    (recipe) => recipe.iterations.length > 0,
   );
   Object.keys(state.programs).forEach((name) => {
     if (String(state.programs[name]) === String(recipeId))
@@ -462,39 +475,75 @@ function deleteRecipe(recipeId) {
   showToast('Recipe deleted.');
 }
 
-function createRecipeCard(recipe) {
-  const card = document.createElement('article');
-  card.className = 'recipe-card panel';
+function editIteration(iterationId) {
+  const match = findIteration(state, iterationId);
+  if (!match) return;
+
+  const { recipe, iteration } = match;
+  const form = byId('dial-form');
+  form.elements.coffee.value = recipe.coffee;
+  form.elements.grindSize.value = iteration.grindSize ?? '';
+  form.elements.shotTime.value = iteration.shotTime ?? '';
+  form.elements.dose.value = iteration.dose;
+  form.elements.yieldGrams.value = iteration.yieldGrams;
+  form.elements.strength.value = iteration.strength ?? '';
+  form.elements.targetStrength.value = iteration.targetStrength ?? 9.3;
+  form.elements.targetSolids.value = iteration.targetSolids ?? 4.41;
+  editingIterationId = iteration.id;
+  lastCalculation = null;
+  byId('edit-context').hidden = false;
+  byId('result-placeholder').hidden = false;
+  byId('result-content').hidden = true;
+  showView('dial-in');
+  form.elements.grindSize.focus();
+}
+
+function createRecipeIteration(recipe, iteration, iterationNumber) {
+  const section = document.createElement('section');
+  section.className = 'recipe-iteration';
 
   const top = document.createElement('div');
   top.className = 'recipe-top';
   const titleWrap = document.createElement('div');
-  const title = document.createElement('h3');
-  title.textContent = recipe.coffee;
+  const title = document.createElement('h4');
+  title.textContent = `Iteration ${iterationNumber}`;
   const date = document.createElement('p');
-  date.textContent = formatDate(recipe);
+  date.textContent = formatDate(iteration);
   titleWrap.append(title, date);
   top.append(titleWrap);
+
+  const actions = document.createElement('div');
+  actions.className = 'iteration-actions';
+  const edit = document.createElement('button');
+  edit.type = 'button';
+  edit.className = 'button button-secondary button-compact';
+  edit.textContent = 'Edit';
+  edit.addEventListener('click', () => editIteration(iteration.id));
+  actions.append(edit);
 
   const remove = document.createElement('button');
   remove.type = 'button';
   remove.className = 'icon-button';
-  remove.setAttribute('aria-label', `Delete ${recipe.coffee} recipe`);
+  remove.setAttribute(
+    'aria-label',
+    `Delete ${recipe.coffee} iteration ${iterationNumber}`,
+  );
   remove.textContent = 'Delete';
-  remove.addEventListener('click', () => deleteRecipe(recipe.id));
-  top.append(remove);
-  card.append(top);
+  remove.addEventListener('click', () => deleteRecipe(iteration.id));
+  actions.append(remove);
+  top.append(actions);
+  section.append(top);
 
   const metrics = document.createElement('dl');
   metrics.className = 'recipe-metrics';
   const entries = [
-    ['Dose', `${formatMeasurement(recipe.dose)}g`],
-    ['Yield', `${formatMeasurement(recipe.yieldGrams ?? recipe.yield)}g`],
-    ['Strength', `${formatMeasurement(recipe.strength, 2)}%`],
+    ['Dose', `${formatMeasurement(iteration.dose)}g`],
+    ['Yield', `${formatMeasurement(iteration.yieldGrams)}g`],
+    ['Strength', `${formatMeasurement(iteration.strength, 2)}%`],
     [
       'Extraction',
-      recipe.extractionYield
-        ? `${formatMeasurement(recipe.extractionYield, 2)}%`
+      iteration.extractionYield
+        ? `${formatMeasurement(iteration.extractionYield, 2)}%`
         : '—',
     ],
   ];
@@ -507,19 +556,19 @@ function createRecipeCard(recipe) {
     group.append(dt, dd);
     metrics.append(group);
   });
-  card.append(metrics);
+  section.append(metrics);
 
   const brewContext = document.createElement('dl');
   brewContext.className = 'brew-context';
   const brewEntries = [
-    ['Grind size', recipe.grindSize || 'Not recorded'],
+    ['Grind size', iteration.grindSize || 'Not recorded'],
     [
       'Shot time',
-      recipe.shotTime
-        ? `${formatMeasurement(recipe.shotTime)} seconds`
+      iteration.shotTime
+        ? `${formatMeasurement(iteration.shotTime)} seconds`
         : 'Not recorded',
     ],
-    ['Last assigned', formatRecency(recipe.lastAssignedAt)],
+    ['Last assigned', formatRecency(iteration.lastAssignedAt)],
   ];
   brewEntries.forEach(([term, value]) => {
     const group = document.createElement('div');
@@ -530,14 +579,14 @@ function createRecipeCard(recipe) {
     group.append(dt, dd);
     brewContext.append(group);
   });
-  card.append(brewContext);
+  section.append(brewContext);
 
   const assignment = document.createElement('div');
   assignment.className = 'assignment';
   const select = document.createElement('select');
   select.setAttribute(
     'aria-label',
-    `Assign ${recipe.coffee} to a machine program`,
+    `Assign ${recipe.coffee} iteration ${iterationNumber} to a machine program`,
   );
   const prompt = document.createElement('option');
   prompt.value = '';
@@ -547,14 +596,43 @@ function createRecipeCard(recipe) {
     const option = document.createElement('option');
     option.value = name;
     option.textContent = name;
-    option.selected = String(state.programs[name]) === String(recipe.id);
+    option.selected = String(state.programs[name]) === String(iteration.id);
     select.append(option);
   });
   select.addEventListener('change', () => {
-    if (select.value) assignRecipe(recipe.id, select.value);
+    if (select.value) assignRecipe(iteration.id, select.value);
   });
   assignment.append(select);
-  card.append(assignment);
+  section.append(assignment);
+  return section;
+}
+
+function createRecipeCard(recipe) {
+  const card = document.createElement('article');
+  card.className = 'recipe-card panel';
+
+  const heading = document.createElement('div');
+  heading.className = 'recipe-group-heading';
+  const title = document.createElement('h3');
+  title.textContent = recipe.coffee;
+  const count = document.createElement('p');
+  count.textContent = `${recipe.iterations.length} ${recipe.iterations.length === 1 ? 'iteration' : 'iterations'}`;
+  heading.append(title, count);
+  card.append(heading);
+
+  [...recipe.iterations]
+    .sort((a, b) =>
+      String(b.createdAt ?? b.id).localeCompare(String(a.createdAt ?? a.id)),
+    )
+    .forEach((iteration, index) =>
+      card.append(
+        createRecipeIteration(
+          recipe,
+          iteration,
+          recipe.iterations.length - index,
+        ),
+      ),
+    );
   return card;
 }
 
@@ -563,7 +641,9 @@ function renderRecipes() {
   list.replaceChildren();
   [...state.recipes]
     .sort((a, b) =>
-      String(b.createdAt ?? b.id).localeCompare(String(a.createdAt ?? a.id)),
+      String(b.iterations.at(-1)?.createdAt ?? b.id).localeCompare(
+        String(a.iterations.at(-1)?.createdAt ?? a.id),
+      ),
     )
     .forEach((recipe) => list.append(createRecipeCard(recipe)));
   byId('recipes-empty').hidden = state.recipes.length !== 0;
@@ -632,19 +712,21 @@ byId('save-recipe').addEventListener('click', () => {
   if (!lastCalculation) return;
   const { coffee, measurements, brewDetails, result } = lastCalculation;
   const savedAt = new Date().toISOString();
-  state.recipes.push({
+  const iteration = {
     id: globalThis.crypto?.randomUUID?.() ?? String(Date.now()),
-    coffee,
     dose: measurements.dose,
     yieldGrams: measurements.yieldGrams,
     strength: measurements.strength,
+    targetStrength: measurements.targetStrength,
+    targetSolids: measurements.targetSolids,
     grindSize: brewDetails.grindSize,
     shotTime: brewDetails.shotTime,
     extractionYield: result.extractionYield,
     dissolvedSolids: result.dissolvedSolids,
     createdAt: savedAt,
     lastAssignedAt: null,
-  });
+  };
+  const recipe = addRecipeIteration(state, coffee, iteration);
   persistAndRender();
   byId('dial-form').reset();
   byId('target-strength').value = '9.30';
@@ -652,8 +734,15 @@ byId('save-recipe').addEventListener('click', () => {
   byId('result-placeholder').hidden = false;
   byId('result-content').hidden = true;
   lastCalculation = null;
+  const wasEditing = editingIterationId !== null;
+  editingIterationId = null;
+  byId('edit-context').hidden = true;
   showView('recipes');
-  showToast(`${coffee} saved to your recipe log.`);
+  showToast(
+    wasEditing || recipe.iterations.length > 1
+      ? `${recipe.coffee} saved as iteration ${recipe.iterations.length}.`
+      : `${recipe.coffee} saved to your recipe log.`,
+  );
 });
 
 byId('quick-form').addEventListener('input', (event) => {

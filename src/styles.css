@@ -337,6 +337,10 @@ summary:focus-visible {
   font-weight: 800;
 }
 
+.program-edit {
+  margin-top: 0.85rem;
+}
+
 .program-marker,
 #dashboard-empty,
 .empty-icon {
@@ -560,6 +564,24 @@ summary:focus-visible {
   min-width: 0;
 }
 
+.recipe-group-heading h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.recipe-group-heading p {
+  margin: 0.25rem 0 0;
+  color: var(--blue);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.recipe-iteration {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--slate-200);
+}
+
 .recipe-top {
   display: flex;
   align-items: flex-start;
@@ -567,7 +589,8 @@ summary:focus-visible {
   gap: 1rem;
 }
 
-.recipe-top h3 {
+.recipe-top h3,
+.recipe-top h4 {
   margin: 0;
   font-size: 1.15rem;
 }
@@ -586,6 +609,17 @@ summary:focus-visible {
   border: 0;
   font-size: 0.7rem;
   font-weight: 800;
+}
+
+.iteration-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.edit-context {
+  color: var(--blue) !important;
+  font-weight: 700;
 }
 
 .recipe-metrics {
