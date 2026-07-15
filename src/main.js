@@ -46,7 +46,10 @@ app.innerHTML = `
     <section class="view" id="view-dashboard" data-view-panel="dashboard">
       <div class="section-heading">
         <div><p class="eyebrow">At the machine</p><h2>Program board</h2></div>
-        <button class="button button-secondary" type="button" data-go="dial-in">+ Dial in a coffee</button>
+        <div class="toolbar">
+          <button class="button button-secondary" id="print-label" type="button">Print 6 × 4 label</button>
+          <button class="button button-secondary" type="button" data-go="dial-in">+ Dial in a coffee</button>
+        </div>
       </div>
       <div class="program-grid" id="program-grid"></div>
       <div class="empty-state" id="dashboard-empty" hidden>
@@ -89,8 +92,17 @@ app.innerHTML = `
             <input id="strength" name="strength" type="number" min="0.01" max="30" step="0.01" inputmode="decimal" placeholder="9.30" required />
             <small>Enter the reading from your refractometer.</small>
           </div>
-          <details class="targets field-wide">
-            <summary>Target settings</summary>
+          <section class="targets field-wide" aria-labelledby="dial-targets-heading">
+            <div class="target-heading">
+              <div>
+                <p class="target-title" id="dial-targets-heading">Target settings</p>
+                <small>Choose a preset or enter your own service targets.</small>
+              </div>
+              <div class="preset-buttons" aria-label="Dial-in target presets">
+                <button class="button button-compact" type="button" data-target-form="dial-form" data-target-strength="8.50">Single · 8.50%</button>
+                <button class="button button-compact" type="button" data-target-form="dial-form" data-target-strength="9.30">Blend · 9.30%</button>
+              </div>
+            </div>
             <div class="target-grid">
               <div class="field">
                 <label for="target-strength">Target strength <span>%</span></label>
@@ -101,7 +113,7 @@ app.innerHTML = `
                 <input id="target-solids" name="targetSolids" type="number" min="0.01" max="30" step="0.01" value="4.41" required />
               </div>
             </div>
-          </details>
+          </section>
           <p class="form-error field-wide" id="dial-error" role="alert" hidden></p>
           <button class="button button-primary button-large field-wide" type="submit">Calculate next shot</button>
         </form>
@@ -160,8 +172,11 @@ app.innerHTML = `
           <div class="field"><label for="quick-dose">Dose <span>g</span></label><input id="quick-dose" name="dose" type="number" min="0.1" step="0.1" placeholder="18.0" /></div>
           <div class="field"><label for="quick-yield">Yield <span>g</span></label><input id="quick-yield" name="yieldGrams" type="number" min="0.1" step="0.1" placeholder="40.0" /></div>
           <div class="field"><label for="quick-strength">Strength <span>%</span></label><input id="quick-strength" name="strength" type="number" min="0.01" step="0.01" placeholder="9.30" /></div>
-          <input name="targetStrength" type="hidden" value="9.30" />
-          <input name="targetSolids" type="hidden" value="4.41" />
+          <div class="quick-targets">
+            <p class="target-title">Targets</p>
+            <div class="field"><label for="quick-target-strength">Target strength <span>%</span></label><input id="quick-target-strength" name="targetStrength" type="number" min="0.01" max="30" step="0.01" value="9.30" /></div>
+            <div class="field"><label for="quick-target-solids">Target dissolved solids <span>g</span></label><input id="quick-target-solids" name="targetSolids" type="number" min="0.01" max="30" step="0.01" value="4.41" /></div>
+          </div>
         </form>
         <div class="quick-results" aria-live="polite">
           <div><span>Recommended dose</span><strong id="quick-rec-dose">—</strong><small>grams</small></div>
@@ -175,6 +190,7 @@ app.innerHTML = `
 
   <footer><p>CoffeeCalc stores recipes in your browser. Export a backup before clearing browser data.</p></footer>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <section class="print-label" id="print-label-sheet" aria-label="Long Up and Long Down recipes"></section>
 `;
 
 const byId = (id) => document.getElementById(id);
@@ -268,6 +284,69 @@ function renderDashboard() {
     grid.append(createProgramCard(programName, recipe));
   });
   byId('dashboard-empty').hidden = state.recipes.length !== 0;
+}
+
+function assignedRecipe(programName) {
+  return state.recipes.find(
+    (item) => String(item.id) === String(state.programs[programName]),
+  );
+}
+
+function createPrintRecipe(programName, recipe) {
+  const column = document.createElement('article');
+  column.className = 'print-recipe';
+
+  const program = document.createElement('p');
+  program.className = 'print-program';
+  program.textContent = programName;
+
+  const coffee = document.createElement('h1');
+  coffee.textContent = recipe.coffee;
+
+  const ratio = document.createElement('p');
+  ratio.className = 'print-ratio';
+  ratio.textContent = `${formatMeasurement(recipe.dose)}g → ${formatMeasurement(recipe.yieldGrams ?? recipe.yield)}g`;
+
+  const details = document.createElement('dl');
+  const entries = [
+    ['Dose', `${formatMeasurement(recipe.dose)} g`],
+    ['Yield', `${formatMeasurement(recipe.yieldGrams ?? recipe.yield)} g`],
+    ['Grind', recipe.grindSize || 'Not recorded'],
+    [
+      'Time',
+      recipe.shotTime
+        ? `${formatMeasurement(recipe.shotTime)} sec`
+        : 'Not recorded',
+    ],
+  ];
+
+  entries.forEach(([term, value]) => {
+    const row = document.createElement('div');
+    const dt = document.createElement('dt');
+    const dd = document.createElement('dd');
+    dt.textContent = term;
+    dd.textContent = value;
+    row.append(dt, dd);
+    details.append(row);
+  });
+
+  column.append(program, coffee, ratio, details);
+  return column;
+}
+
+function renderPrintLabel() {
+  const sheet = byId('print-label-sheet');
+  const longUp = assignedRecipe('Long Up');
+  const longDown = assignedRecipe('Long Down');
+
+  sheet.replaceChildren();
+  if (!longUp || !longDown) return false;
+
+  sheet.append(
+    createPrintRecipe('Long Up', longUp),
+    createPrintRecipe('Long Down', longDown),
+  );
+  return true;
 }
 
 function formatDate(recipe) {
@@ -467,6 +546,13 @@ function showCalculation(calculation) {
     `${formatMeasurement(calculation.dissolvedSolids, 2)}g`;
 }
 
+function applyTargetPreset(formId, targetStrength) {
+  const form = byId(formId);
+  form.elements.targetStrength.value = Number(targetStrength).toFixed(2);
+  form.elements.targetSolids.value = '4.41';
+  form.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 byId('dial-form').addEventListener('submit', (event) => {
   event.preventDefault();
   const error = byId('dial-error');
@@ -556,6 +642,16 @@ byId('quick-form').addEventListener('input', (event) => {
   }
 });
 
+byId('print-label').addEventListener('click', () => {
+  if (!renderPrintLabel()) {
+    showToast('Assign recipes to Long Up and Long Down before printing.');
+    return;
+  }
+  window.print();
+});
+
+window.addEventListener('beforeprint', renderPrintLabel);
+
 byId('export-button').addEventListener('click', () => {
   const blob = new Blob([exportState(state)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -585,6 +681,12 @@ byId('import-file').addEventListener('change', async (event) => {
 });
 
 document.addEventListener('click', (event) => {
+  const preset = event.target.closest('[data-target-form]');
+  if (preset) {
+    applyTargetPreset(preset.dataset.targetForm, preset.dataset.targetStrength);
+    return;
+  }
+
   const target = event.target.closest('[data-view], [data-go]');
   if (!target) return;
   showView(target.dataset.view || target.dataset.go);

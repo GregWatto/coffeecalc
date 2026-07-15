@@ -9,7 +9,9 @@ The app runs entirely in the browser. Recipes and machine-program assignments ar
 - Guided espresso dial-in workflow
 - Extraction yield and dissolved-solids calculations
 - Recommended dose and yield based on configurable targets
+- Single and blend target presets, with editable targets in both calculators
 - Machine-program assignment board
+- 6 × 4 inch landscape labels for the Long Up and Long Down recipes
 - Grind-size, shot-time, and last-assigned tracking
 - Search-free, locally stored recipe log
 - JSON backup and restore
