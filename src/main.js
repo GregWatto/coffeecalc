@@ -7,6 +7,7 @@ import {
   findIteration,
   importState,
   loadState,
+  recipeNameKey,
   saveState,
 } from './storage.js';
 
@@ -72,13 +73,12 @@ app.innerHTML = `
             <input id="coffee-name" name="coffee" type="text" maxlength="80" autocomplete="off" placeholder="e.g. Showcase Blend" required />
             <small class="edit-context" id="edit-context" hidden>Editing a saved recipe. Saving will create a new iteration.</small>
           </div>
-          <div class="field">
-            <label for="grind-size">Grind size <span>setting</span></label>
-            <input id="grind-size" name="grindSize" type="text" maxlength="40" autocomplete="off" placeholder="e.g. 4.2 or 18 clicks" required />
-          </div>
-          <div class="field">
-            <label for="shot-time">Shot time <span>seconds</span></label>
-            <input id="shot-time" name="shotTime" type="number" min="1" max="300" step="0.1" inputmode="decimal" placeholder="28.0" required />
+          <div class="field field-wide">
+            <label for="recipe-type">Recipe type</label>
+            <select id="recipe-type" name="recipeType">
+              <option value="blend" selected>Blend</option>
+              <option value="single">Single</option>
+            </select>
           </div>
           <div class="field">
             <label for="dose">Dose <span>g</span></label>
@@ -87,6 +87,14 @@ app.innerHTML = `
           <div class="field">
             <label for="yield">Yield <span>g</span></label>
             <input id="yield" name="yieldGrams" type="number" min="0.1" max="300" step="0.1" inputmode="decimal" placeholder="40.0" required />
+          </div>
+          <div class="field">
+            <label for="grind-size">Grind size <span>optional</span></label>
+            <input id="grind-size" name="grindSize" type="text" maxlength="40" autocomplete="off" placeholder="e.g. 4.2 or 18 clicks" />
+          </div>
+          <div class="field">
+            <label for="shot-time">Shot time <span>optional · seconds</span></label>
+            <input id="shot-time" name="shotTime" type="number" min="1" max="300" step="0.1" inputmode="decimal" placeholder="28.0" />
           </div>
           <div class="field field-wide">
             <label for="strength">Measured strength <span>% TDS</span></label>
@@ -97,11 +105,7 @@ app.innerHTML = `
             <div class="target-heading">
               <div>
                 <p class="target-title" id="dial-targets-heading">Target settings</p>
-                <small>Choose a preset or enter your own service targets.</small>
-              </div>
-              <div class="preset-buttons" aria-label="Dial-in target presets">
-                <button class="button button-compact" type="button" data-target-form="dial-form" data-target-strength="8.50">Single · 8.50%</button>
-                <button class="button button-compact" type="button" data-target-form="dial-form" data-target-strength="9.30">Blend · 9.30%</button>
+                <small>Strength follows the recipe type, but can still be adjusted.</small>
               </div>
             </div>
             <div class="target-grid">
@@ -117,6 +121,7 @@ app.innerHTML = `
           </section>
           <p class="form-error field-wide" id="dial-error" role="alert" hidden></p>
           <button class="button button-primary button-large field-wide" type="submit">Calculate next shot</button>
+          <button class="button button-secondary button-large field-wide" id="save-recipe" type="button" disabled>Save this shot</button>
         </form>
 
         <aside class="panel result-panel" id="dial-result" aria-live="polite">
@@ -138,7 +143,6 @@ app.innerHTML = `
             </div>
             <div class="result-actions">
               <button class="button button-primary" id="dial-further" type="button">Use recommendation</button>
-              <button class="button button-secondary" id="save-recipe" type="button">Save this shot</button>
             </div>
           </div>
         </aside>
@@ -261,10 +265,15 @@ function measurementsFrom(form) {
 
 function brewDetailsFrom(form) {
   const data = new FormData(form);
+  const shotTime = data.get('shotTime');
   return {
     grindSize: data.get('grindSize').trim(),
-    shotTime: Number(data.get('shotTime')),
+    shotTime: shotTime === '' ? null : Number(shotTime),
   };
+}
+
+function targetStrengthForRecipeType(recipeType) {
+  return recipeType === 'single' ? 8.5 : 9.3;
 }
 
 function showToast(message) {
@@ -313,7 +322,7 @@ function createProgramCard(programName, recipe) {
 
   const detail = document.createElement('p');
   detail.textContent = recipe
-    ? `${formatMeasurement(recipe.dose)}g → ${formatMeasurement(recipe.yieldGrams ?? recipe.yield)}g · ${formatMeasurement(recipe.strength, 2)}% · ${recipe.grindSize || 'Grind not set'} · ${recipe.shotTime ? `${formatMeasurement(recipe.shotTime)}s` : 'Time not set'}`
+    ? `${recipe.recipeType === 'single' ? 'Single' : 'Blend'} · ${formatMeasurement(recipe.dose)}g → ${formatMeasurement(recipe.yieldGrams ?? recipe.yield)}g · ${formatMeasurement(recipe.strength, 2)}% · ${recipe.grindSize || 'Grind not set'} · ${recipe.shotTime ? `${formatMeasurement(recipe.shotTime)}s` : 'Time not set'}`
     : 'Empty slot';
   heading.append(detail);
 
@@ -348,7 +357,13 @@ function renderDashboard() {
     grid.append(
       createProgramCard(
         programName,
-        match ? { ...match.iteration, coffee: match.recipe.coffee } : null,
+        match
+          ? {
+              ...match.iteration,
+              coffee: match.recipe.coffee,
+              recipeType: match.recipe.recipeType,
+            }
+          : null,
       ),
     );
   });
@@ -493,6 +508,7 @@ function editIteration(iterationId) {
   const { recipe, iteration } = match;
   const form = byId('dial-form');
   form.elements.coffee.value = recipe.coffee;
+  form.elements.recipeType.value = recipe.recipeType ?? 'blend';
   form.elements.grindSize.value = iteration.grindSize ?? '';
   form.elements.shotTime.value = iteration.shotTime ?? '';
   form.elements.dose.value = iteration.dose;
@@ -505,6 +521,7 @@ function editIteration(iterationId) {
   byId('edit-context').hidden = false;
   byId('result-placeholder').hidden = false;
   byId('result-content').hidden = true;
+  byId('save-recipe').disabled = true;
   showView('dial-in');
   form.elements.grindSize.focus();
 }
@@ -627,7 +644,8 @@ function createRecipeCard(recipe) {
   const title = document.createElement('h3');
   title.textContent = recipe.coffee;
   const count = document.createElement('p');
-  count.textContent = `${recipe.iterations.length} ${recipe.iterations.length === 1 ? 'iteration' : 'iterations'}`;
+  const typeLabel = recipe.recipeType === 'single' ? 'Single' : 'Blend';
+  count.textContent = `${typeLabel} · ${recipe.iterations.length} ${recipe.iterations.length === 1 ? 'iteration' : 'iterations'}`;
   heading.append(title, count);
   card.append(heading);
 
@@ -682,13 +700,6 @@ function showCalculation(calculation) {
     `${formatMeasurement(calculation.dissolvedSolids, 2)}g`;
 }
 
-function applyTargetPreset(formId, targetStrength) {
-  const form = byId(formId);
-  form.elements.targetStrength.value = Number(targetStrength).toFixed(2);
-  form.elements.targetSolids.value = '4.41';
-  form.dispatchEvent(new Event('input', { bubbles: true }));
-}
-
 byId('dial-form').addEventListener('submit', (event) => {
   event.preventDefault();
   const error = byId('dial-error');
@@ -696,14 +707,43 @@ byId('dial-form').addEventListener('submit', (event) => {
   try {
     const measurements = measurementsFrom(event.currentTarget);
     const result = calculateDialIn(measurements);
-    const coffee = new FormData(event.currentTarget).get('coffee').trim();
+    const data = new FormData(event.currentTarget);
+    const coffee = data.get('coffee').trim();
+    const recipeType = data.get('recipeType');
     const brewDetails = brewDetailsFrom(event.currentTarget);
-    lastCalculation = { coffee, measurements, brewDetails, result };
+    lastCalculation = {
+      coffee,
+      recipeType,
+      measurements,
+      brewDetails,
+      result,
+    };
     showCalculation(result);
+    byId('save-recipe').disabled = false;
   } catch (caught) {
     error.textContent = caught.message;
     error.hidden = false;
   }
+});
+
+byId('dial-form').addEventListener('input', (event) => {
+  if (event.target.name === 'coffee') {
+    const savedRecipe = state.recipes.find(
+      (recipe) =>
+        recipeNameKey(recipe.coffee) === recipeNameKey(event.target.value),
+    );
+    if (savedRecipe) {
+      event.currentTarget.elements.recipeType.value = savedRecipe.recipeType;
+      event.currentTarget.elements.targetStrength.value =
+        targetStrengthForRecipeType(savedRecipe.recipeType).toFixed(2);
+    }
+  }
+  if (event.target.name === 'recipeType') {
+    event.currentTarget.elements.targetStrength.value =
+      targetStrengthForRecipeType(event.target.value).toFixed(2);
+  }
+  lastCalculation = null;
+  byId('save-recipe').disabled = true;
 });
 
 byId('dial-further').addEventListener('click', () => {
@@ -715,13 +755,16 @@ byId('dial-further').addEventListener('click', () => {
     lastCalculation.result.recommendedYield,
   );
   byId('strength').value = '';
+  lastCalculation = null;
+  byId('save-recipe').disabled = true;
   byId('strength').focus();
   showToast('Recommendation loaded. Measure the next shot’s strength.');
 });
 
 byId('save-recipe').addEventListener('click', () => {
   if (!lastCalculation) return;
-  const { coffee, measurements, brewDetails, result } = lastCalculation;
+  const { coffee, recipeType, measurements, brewDetails, result } =
+    lastCalculation;
   const savedAt = new Date().toISOString();
   const iteration = {
     id: globalThis.crypto?.randomUUID?.() ?? String(Date.now()),
@@ -737,13 +780,14 @@ byId('save-recipe').addEventListener('click', () => {
     createdAt: savedAt,
     lastAssignedAt: null,
   };
-  const recipe = addRecipeIteration(state, coffee, iteration);
+  const recipe = addRecipeIteration(state, coffee, iteration, recipeType);
   persistAndRender();
   byId('dial-form').reset();
   byId('target-strength').value = '9.30';
   byId('target-solids').value = '4.41';
   byId('result-placeholder').hidden = false;
   byId('result-content').hidden = true;
+  byId('save-recipe').disabled = true;
   lastCalculation = null;
   const wasEditing = editingIterationId !== null;
   editingIterationId = null;
@@ -826,12 +870,6 @@ byId('import-file').addEventListener('change', async (event) => {
 });
 
 document.addEventListener('click', (event) => {
-  const preset = event.target.closest('[data-target-form]');
-  if (preset) {
-    applyTargetPreset(preset.dataset.targetForm, preset.dataset.targetStrength);
-    return;
-  }
-
   const target = event.target.closest('[data-view], [data-go]');
   if (!target) return;
   showView(target.dataset.view || target.dataset.go);

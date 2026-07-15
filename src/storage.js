@@ -1,6 +1,7 @@
 export const STORAGE_KEY = 'coffeecalc:v1';
 
 export const PROGRAM_NAMES = ['Long Up', 'Down', 'Long Down'];
+export const RECIPE_TYPES = ['single', 'blend'];
 
 export function createInitialState() {
   return {
@@ -13,6 +14,11 @@ export function recipeNameKey(value) {
   return String(value ?? '')
     .trim()
     .toLocaleLowerCase();
+}
+
+function normaliseRecipeType(value, targetStrength) {
+  if (RECIPE_TYPES.includes(value)) return value;
+  return Number(targetStrength) === 8.5 ? 'single' : 'blend';
 }
 
 function normaliseIteration(value, fallbackId) {
@@ -59,6 +65,11 @@ function normaliseState(value) {
           ? (storedRecipe.id ?? `recipe-${recipeIndex + 1}`)
           : `recipe-${storedRecipe.id ?? recipeIndex + 1}`,
         coffee,
+        recipeType: normaliseRecipeType(
+          storedRecipe.recipeType,
+          storedRecipe.targetStrength ??
+            storedRecipe.iterations?.[0]?.targetStrength,
+        ),
         createdAt: storedRecipe.createdAt ?? null,
         iterations: [],
       };
@@ -97,7 +108,12 @@ export function findIteration(state, iterationId) {
   return null;
 }
 
-export function addRecipeIteration(state, coffeeName, iteration) {
+export function addRecipeIteration(
+  state,
+  coffeeName,
+  iteration,
+  recipeType = 'blend',
+) {
   const coffee = String(coffeeName).trim();
   const key = recipeNameKey(coffee);
   let recipe = state.recipes.find((item) => recipeNameKey(item.coffee) === key);
@@ -106,11 +122,13 @@ export function addRecipeIteration(state, coffeeName, iteration) {
     recipe = {
       id: globalThis.crypto?.randomUUID?.() ?? `recipe-${Date.now()}`,
       coffee,
+      recipeType: normaliseRecipeType(recipeType),
       createdAt: iteration.createdAt ?? new Date().toISOString(),
       iterations: [],
     };
     state.recipes.push(recipe);
   }
+  recipe.recipeType = normaliseRecipeType(recipeType);
   recipe.iterations.push(iteration);
   return recipe;
 }

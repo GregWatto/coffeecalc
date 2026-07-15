@@ -46,6 +46,7 @@ describe('state persistence', () => {
     state.recipes.push({
       id: 'recipe-1',
       coffee: 'Showcase Blend',
+      recipeType: 'blend',
       createdAt: '2026-07-16T00:00:00.000Z',
       iterations: [
         iteration('shot-1', {
@@ -87,6 +88,7 @@ describe('state persistence', () => {
 
     expect(state.recipes).toHaveLength(1);
     expect(state.recipes[0].coffee).toBe('Showcase Blend');
+    expect(state.recipes[0].recipeType).toBe('blend');
     expect(state.recipes[0].iterations.map(({ id }) => id)).toEqual([
       'shot-1',
       'shot-2',
@@ -109,6 +111,7 @@ describe('state persistence', () => {
     const migrated = state.recipes[0].iterations[0];
 
     expect(state.recipes[0].coffee).toBe('Legacy Coffee');
+    expect(state.recipes[0].recipeType).toBe('blend');
     expect(migrated.yieldGrams).toBe(42);
     expect(migrated.grindSize).toBe('');
     expect(migrated.shotTime).toBeNull();
@@ -125,11 +128,12 @@ describe('state persistence', () => {
 describe('recipe iterations', () => {
   it('adds same-name shots to one recipe regardless of case', () => {
     const state = createInitialState();
-    addRecipeIteration(state, 'Showcase Blend', iteration('shot-1'));
-    addRecipeIteration(state, 'showcase blend', iteration('shot-2'));
+    addRecipeIteration(state, 'Showcase Blend', iteration('shot-1'), 'blend');
+    addRecipeIteration(state, 'showcase blend', iteration('shot-2'), 'single');
 
     expect(state.recipes).toHaveLength(1);
     expect(state.recipes[0].coffee).toBe('Showcase Blend');
+    expect(state.recipes[0].recipeType).toBe('single');
     expect(state.recipes[0].iterations).toHaveLength(2);
     expect(findIteration(state, 'shot-2')?.recipe.id).toBe(state.recipes[0].id);
   });
@@ -140,6 +144,25 @@ describe('recipe iterations', () => {
     addRecipeIteration(state, 'Single Origin', iteration('shot-2'));
 
     expect(state.recipes).toHaveLength(2);
+  });
+
+  it('infers a single recipe when migrating an 8.5% target', () => {
+    const state = importState(
+      JSON.stringify({
+        recipes: [
+          {
+            id: 'single-shot',
+            coffee: 'Seasonal Single',
+            dose: 18,
+            yieldGrams: 42,
+            targetStrength: 8.5,
+          },
+        ],
+        programs: {},
+      }),
+    );
+
+    expect(state.recipes[0].recipeType).toBe('single');
   });
 });
 

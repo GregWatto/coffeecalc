@@ -481,6 +481,12 @@ summary:focus-visible {
   transform: translateY(1px);
 }
 
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
+}
+
 .button-primary {
   color: white;
   background: var(--navy);
@@ -628,6 +634,7 @@ summary:focus-visible {
 }
 
 .field input,
+.field select,
 .assignment select {
   width: 100%;
   min-height: 48px;
@@ -640,6 +647,7 @@ summary:focus-visible {
 }
 
 .field input:focus,
+.field select:focus,
 .assignment select:focus {
   background: white;
   border-color: var(--blue);
