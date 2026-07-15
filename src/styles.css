@@ -1097,12 +1097,15 @@ summary:focus-visible {
   body,
   #app {
     width: 6in;
+    max-width: none;
     height: 4in;
     min-height: 0;
     margin: 0;
     padding: 0;
     background: white;
+    border-radius: 0;
     box-shadow: none;
+    overflow: visible;
   }
 
   #app > :not(.print-label) {
@@ -1111,15 +1114,20 @@ summary:focus-visible {
 
   #app .print-label {
     display: grid !important;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 50mm 50mm;
+    column-gap: 52.4mm;
     width: 6in;
     height: 4in;
+    overflow: hidden;
     color: #000;
     background: #fff;
   }
 
   .print-recipe {
+    width: 50mm;
+    height: 4in;
     padding: 0.35in;
+    overflow: hidden;
   }
 
   .print-recipe + .print-recipe {
