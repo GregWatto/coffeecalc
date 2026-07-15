@@ -7,11 +7,23 @@ export default [
   },
   js.configs.recommended,
   {
-    files: ['src/**/*.js', 'vite.config.js'],
+    files: ['src/**/*.js'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
       globals: globals.browser,
+    },
+  },
+  {
+    files: ['vite.config.js', 'build/**/*.js'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
+  {
+    files: ['worker/**/*.js'],
+    languageOptions: {
+      globals: globals.serviceworker,
     },
   },
   {

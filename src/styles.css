@@ -108,12 +108,21 @@ a:focus-visible {
   align-items: center;
   gap: 7px;
 }
-.save-status span {
+.save-status .status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: #5a9d6d;
   box-shadow: 0 0 0 4px rgb(90 157 109 / 12%);
+}
+.save-status[data-state='connecting'] .status-dot,
+.save-status[data-state='saving'] .status-dot {
+  background: var(--orange);
+  box-shadow: 0 0 0 4px rgb(220 125 50 / 12%);
+}
+.save-status[data-state='offline'] .status-dot {
+  background: #9b4b3c;
+  box-shadow: 0 0 0 4px rgb(155 75 60 / 12%);
 }
 
 .app-shell {

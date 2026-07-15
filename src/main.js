@@ -9,6 +9,7 @@ import {
 
 let state = loadState();
 let lastCalculation = null;
+let onlineSaveQueue = Promise.resolve();
 
 const app = document.querySelector('#app');
 
@@ -21,7 +22,7 @@ app.innerHTML = `
         <small>Espresso dial-in notebook</small>
       </span>
     </a>
-    <span class="save-status"><span aria-hidden="true"></span> Saved on this device</span>
+    <span class="save-status" id="save-status" data-state="connecting"><span class="status-dot" aria-hidden="true"></span><span id="save-status-text">Connecting online…</span></span>
   </header>
 
   <main class="app-shell">
@@ -195,6 +196,54 @@ app.innerHTML = `
 
 const byId = (id) => document.getElementById(id);
 const numberFrom = (formData, name) => Number(formData.get(name));
+
+function setSaveStatus(stateName, message) {
+  byId('save-status').dataset.state = stateName;
+  byId('save-status-text').textContent = message;
+}
+
+function queueOnlineSave() {
+  const snapshot = JSON.parse(exportState(state));
+  setSaveStatus('saving', 'Saving online…');
+
+  onlineSaveQueue = onlineSaveQueue
+    .catch(() => undefined)
+    .then(async () => {
+      const response = await fetch('/api/state', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ state: snapshot }),
+      });
+      if (!response.ok) throw new Error('Online save failed.');
+      setSaveStatus('online', 'Saved online');
+    })
+    .catch(() => {
+      setSaveStatus('offline', 'Saved on this device · offline');
+    });
+
+  return onlineSaveQueue;
+}
+
+async function initialiseOnlineState() {
+  try {
+    const response = await fetch('/api/state', { cache: 'no-store' });
+    if (!response.ok) throw new Error('Online storage is unavailable.');
+    const remote = await response.json();
+
+    if (remote.state) {
+      state = importState(JSON.stringify(remote.state));
+      saveState(state);
+      renderDashboard();
+      renderRecipes();
+      setSaveStatus('online', 'Saved online');
+      return;
+    }
+
+    await queueOnlineSave();
+  } catch {
+    setSaveStatus('offline', 'Saved on this device · offline');
+  }
+}
 
 function measurementsFrom(form) {
   const data = new FormData(form);
@@ -529,6 +578,7 @@ function persistAndRender() {
   saveState(state);
   renderDashboard();
   renderRecipes();
+  void queueOnlineSave();
 }
 
 function showCalculation(calculation) {
@@ -694,6 +744,7 @@ document.addEventListener('click', (event) => {
 
 renderDashboard();
 renderRecipes();
+void initialiseOnlineState();
 const initialView = window.location.hash.slice(1);
 if (['dashboard', 'dial-in', 'recipes', 'quick'].includes(initialView))
   showView(initialView);

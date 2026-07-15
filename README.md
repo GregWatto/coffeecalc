@@ -2,7 +2,7 @@
 
 CoffeeCalc is a browser-based espresso dial-in notebook. Enter the dose, beverage yield, and measured strength from a refractometer; the app calculates extraction and suggests the next dose and yield for your target recipe.
 
-The app runs entirely in the browser. Recipes and machine-program assignments are saved to local storage, and users can export or import a JSON backup.
+Recipes and machine-program assignments are stored in the deployed site's D1 database and cached in local storage for offline fallback. Existing browser-only data is uploaded automatically the first time the online database is empty. Users can still export or import a JSON backup.
 
 ## Features
 
@@ -13,7 +13,7 @@ The app runs entirely in the browser. Recipes and machine-program assignments ar
 - Machine-program assignment board
 - 6 × 4 inch landscape labels for the Long Up and Long Down recipes
 - Grind-size, shot-time, and last-assigned tracking
-- Search-free, locally stored recipe log
+- Durable online recipe log with a local offline cache
 - JSON backup and restore
 - Quick calculator for unsaved shots
 - Responsive and keyboard-accessible interface
