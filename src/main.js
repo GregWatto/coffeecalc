@@ -1,3 +1,4 @@
+import './styles.css';
 import { calculateDialIn, formatMeasurement } from './calculator.js';
 import {
   PROGRAM_NAMES,
@@ -15,43 +16,32 @@ const app = document.querySelector('#app');
 
 app.innerHTML = `
   <header class="site-header">
-    <a class="brand" href="#dashboard" aria-label="CoffeeCalc home">
-      <span class="brand-mark" aria-hidden="true">C</span>
-      <span>
-        <strong>CoffeeCalc</strong>
-        <small>Espresso dial-in notebook</small>
-      </span>
-    </a>
+    <h1 id="page-title">Machine Programs</h1>
     <span class="save-status" id="save-status" data-state="connecting"><span class="status-dot" aria-hidden="true"></span><span id="save-status-text">Connecting online…</span></span>
   </header>
 
   <main class="app-shell">
-    <section class="hero">
-      <div>
-        <p class="eyebrow">Brew with intent</p>
-        <h1>Turn today’s shot into tomorrow’s recipe.</h1>
-        <p class="hero-copy">Measure dose, yield, and strength. CoffeeCalc works out extraction and recommends the next shot.</p>
-      </div>
-      <div class="hero-formula" aria-label="Calculation process">
-        <span>Measure</span><i>→</i><span>Calculate</span><i>→</i><span>Adjust</span>
-      </div>
-    </section>
-
     <nav class="tabs" aria-label="Main navigation">
-      <button class="tab is-active" type="button" data-view="dashboard" aria-selected="true">Programs</button>
-      <button class="tab" type="button" data-view="dial-in" aria-selected="false">Dial in</button>
-      <button class="tab" type="button" data-view="recipes" aria-selected="false">Recipe log</button>
-      <button class="tab" type="button" data-view="quick" aria-selected="false">Quick calc</button>
+      <button class="tab is-active" type="button" data-view="dashboard" aria-selected="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12l2-2m0 0 7-7 7 7M5 10v10a1 1 0 0 0 1 1h3m10-11 2 2m-2-2v10a1 1 0 0 1-1 1h-3m-6 0a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1m-6 0h6"/></svg>
+        <span>Home</span>
+      </button>
+      <button class="tab" type="button" data-view="dial-in" aria-selected="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.428 15.428a2 2 0 0 0-1.022-.547l-2.387-.477a6 6 0 0 0-3.86.517l-.318.158a6 6 0 0 1-3.86.517l-1.931-.386a2 2 0 0 0-1.806.547M8 4h8l-1 1v5.172a2 2 0 0 0 .586 1.414l5 5C21.846 17.846 20.953 20 19.171 20H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 0 0 9 10.172V5L8 4z"/></svg>
+        <span>Dial-in</span>
+      </button>
+      <button class="tab" type="button" data-view="recipes" aria-selected="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+        <span>Log</span>
+      </button>
+      <button class="tab" type="button" data-view="quick" aria-selected="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2z"/></svg>
+        <span>Calc</span>
+      </button>
     </nav>
 
     <section class="view" id="view-dashboard" data-view-panel="dashboard">
-      <div class="section-heading">
-        <div><p class="eyebrow">At the machine</p><h2>Program board</h2></div>
-        <div class="toolbar">
-          <button class="button button-secondary" id="print-label" type="button">Print 6 × 4 label</button>
-          <button class="button button-secondary" type="button" data-go="dial-in">+ Dial in a coffee</button>
-        </div>
-      </div>
+      <p class="view-intro">Currently assigned coffees</p>
       <div class="program-grid" id="program-grid"></div>
       <div class="empty-state" id="dashboard-empty" hidden>
         <span class="empty-icon" aria-hidden="true">◎</span>
@@ -63,8 +53,7 @@ app.innerHTML = `
 
     <section class="view" id="view-dial-in" data-view-panel="dial-in" hidden>
       <div class="section-heading">
-        <div><p class="eyebrow">Guided workflow</p><h2>Dial in a coffee</h2></div>
-        <p class="section-note">All measurements are in grams.</p>
+        <p class="view-intro">Record the measured shot, then calculate the next recipe.</p>
       </div>
       <div class="workflow-grid">
         <form class="panel form-panel" id="dial-form">
@@ -147,8 +136,9 @@ app.innerHTML = `
 
     <section class="view" id="view-recipes" data-view-panel="recipes" hidden>
       <div class="section-heading">
-        <div><p class="eyebrow">Your brews</p><h2>Recipe log</h2></div>
+        <p class="view-intro">Saved recipes</p>
         <div class="toolbar">
+          <button class="button button-secondary" id="print-label" type="button">Print label</button>
           <button class="button button-secondary" id="import-button" type="button">Import</button>
           <input id="import-file" type="file" accept="application/json,.json" hidden />
           <button class="button button-secondary" id="export-button" type="button">Export</button>
@@ -165,8 +155,7 @@ app.innerHTML = `
 
     <section class="view" id="view-quick" data-view-panel="quick" hidden>
       <div class="section-heading">
-        <div><p class="eyebrow">No record, no fuss</p><h2>Quick calculator</h2></div>
-        <p class="section-note">Calculations here are not saved.</p>
+        <p class="view-intro">Calculate without saving a recipe.</p>
       </div>
       <div class="quick-layout">
         <form class="panel quick-form" id="quick-form">
@@ -189,7 +178,6 @@ app.innerHTML = `
     </section>
   </main>
 
-  <footer><p>CoffeeCalc stores recipes in your browser. Export a backup before clearing browser data.</p></footer>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
   <section class="print-label" id="print-label-sheet" aria-label="Long Up and Long Down recipes"></section>
 `;
@@ -275,6 +263,13 @@ function showToast(message) {
 }
 
 function showView(viewName) {
+  const viewTitles = {
+    dashboard: 'Machine Programs',
+    'dial-in': 'Dial-in Workflow',
+    recipes: 'Recipe Log',
+    quick: 'Quick Calc',
+  };
+  byId('page-title').textContent = viewTitles[viewName];
   document.querySelectorAll('[data-view-panel]').forEach((panel) => {
     panel.hidden = panel.dataset.viewPanel !== viewName;
   });
@@ -304,7 +299,7 @@ function createProgramCard(programName, recipe) {
   const detail = document.createElement('p');
   detail.textContent = recipe
     ? `${formatMeasurement(recipe.dose)}g → ${formatMeasurement(recipe.yieldGrams ?? recipe.yield)}g · ${formatMeasurement(recipe.strength, 2)}% · ${recipe.grindSize || 'Grind not set'} · ${recipe.shotTime ? `${formatMeasurement(recipe.shotTime)}s` : 'Time not set'}`
-    : 'Assign a saved recipe to this machine program.';
+    : 'Empty slot';
   heading.append(detail);
 
   if (recipe) {

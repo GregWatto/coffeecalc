@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = 'CoffeeCalc · Espresso dial-in';
   const description =
     'Dial in espresso recipes using dose, yield, and measured strength.';
-  const image = new URL('/og.png', metadataBase).toString();
+  const image = new URL('/og-v2.png', metadataBase).toString();
 
   return {
     metadataBase,
@@ -28,7 +28,14 @@ export async function generateMetadata(): Promise<Metadata> {
       title,
       description,
       type: 'website',
-      images: [{ url: image, width: 1731, height: 909, alt: 'CoffeeCalc espresso dial-in calculator' }],
+      images: [
+        {
+          url: image,
+          width: 1672,
+          height: 941,
+          alt: 'CoffeeCalc espresso dial-in calculator',
+        },
+      ],
     },
     twitter: {
       card: 'summary_large_image',
@@ -39,7 +46,9 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en">
       <body>{children}</body>
