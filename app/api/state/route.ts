@@ -1,4 +1,5 @@
-import { getDatabase } from '../../../db';
+import { ensureCoffeeStateSchema, getDatabase } from '../../../db';
+import { getUserForRequest, isSameOrigin } from '../../auth';
 
 const STATE_ID = 'cafe';
 const MAX_STATE_BYTES = 256_000;
@@ -18,8 +19,12 @@ function isCoffeeState(value: unknown): value is CoffeeState {
   );
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    if (!(await getUserForRequest(request))) {
+      return Response.json({ error: 'Unauthorised' }, { status: 401 });
+    }
+    await ensureCoffeeStateSchema();
     const row = await getDatabase()
       .prepare('SELECT payload, updated_at FROM coffee_states WHERE id = ?')
       .bind(STATE_ID)
@@ -40,6 +45,13 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
+    if (!isSameOrigin(request)) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!(await getUserForRequest(request))) {
+      return Response.json({ error: 'Unauthorised' }, { status: 401 });
+    }
+    await ensureCoffeeStateSchema();
     const body = (await request.json()) as { state?: unknown };
     if (!isCoffeeState(body.state)) {
       return Response.json(

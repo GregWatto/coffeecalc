@@ -19,6 +19,13 @@ const app = document.querySelector('#app');
 
 app.innerHTML = `
   <header class="site-header">
+    <div class="staff-menu">
+      <span id="staff-name"></span>
+      <a id="staff-admin" href="/admin">Manage staff</a>
+      <form action="/api/auth/logout" method="post">
+        <button type="submit">Sign out</button>
+      </form>
+    </div>
     <h1 id="page-title">Machine Programs</h1>
     <span class="save-status" id="save-status" data-state="connecting"><span class="status-dot" aria-hidden="true"></span><span id="save-status-text">Connecting online…</span></span>
   </header>
@@ -185,6 +192,10 @@ app.innerHTML = `
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
   <section class="print-label" id="print-label-sheet" aria-label="Long Up and Long Down recipes"></section>
 `;
+
+document.querySelector('#staff-name').textContent =
+  app.dataset.username || 'Staff';
+document.querySelector('#staff-admin').hidden = app.dataset.role !== 'admin';
 
 const byId = (id) => document.getElementById(id);
 const numberFrom = (formData, name) => Number(formData.get(name));
