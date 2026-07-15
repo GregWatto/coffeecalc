@@ -2,7 +2,7 @@ import { getDatabase } from '../db';
 
 export const SESSION_COOKIE = 'coffeecalc_session';
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 14;
-const PASSWORD_ITERATIONS = 210_000;
+const PASSWORD_ITERATIONS = 100_000;
 const MAX_FAILURES = 5;
 const LOCK_SECONDS = 15 * 60;
 let schemaReady: Promise<void> | null = null;
