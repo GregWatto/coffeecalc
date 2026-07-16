@@ -121,7 +121,7 @@ app.innerHTML = `
           </section>
           <p class="form-error field-wide" id="dial-error" role="alert" hidden></p>
           <button class="button button-primary button-large field-wide" type="submit">Calculate next shot</button>
-          <button class="button button-secondary button-large field-wide" id="save-recipe" type="button" disabled>Save this shot</button>
+          <button class="button button-secondary button-large field-wide" id="save-recipe" type="button">Save this shot</button>
         </form>
 
         <aside class="panel result-panel" id="dial-result" aria-live="polite">
@@ -274,6 +274,18 @@ function brewDetailsFrom(form) {
 
 function targetStrengthForRecipeType(recipeType) {
   return recipeType === 'single' ? 8.5 : 9.3;
+}
+
+function dialInFrom(form) {
+  const measurements = measurementsFrom(form);
+  const data = new FormData(form);
+  return {
+    coffee: data.get('coffee').trim(),
+    recipeType: data.get('recipeType'),
+    measurements,
+    brewDetails: brewDetailsFrom(form),
+    result: calculateDialIn(measurements),
+  };
 }
 
 function showToast(message) {
@@ -521,7 +533,6 @@ function editIteration(iterationId) {
   byId('edit-context').hidden = false;
   byId('result-placeholder').hidden = false;
   byId('result-content').hidden = true;
-  byId('save-recipe').disabled = true;
   showView('dial-in');
   form.elements.grindSize.focus();
 }
@@ -705,21 +716,8 @@ byId('dial-form').addEventListener('submit', (event) => {
   const error = byId('dial-error');
   error.hidden = true;
   try {
-    const measurements = measurementsFrom(event.currentTarget);
-    const result = calculateDialIn(measurements);
-    const data = new FormData(event.currentTarget);
-    const coffee = data.get('coffee').trim();
-    const recipeType = data.get('recipeType');
-    const brewDetails = brewDetailsFrom(event.currentTarget);
-    lastCalculation = {
-      coffee,
-      recipeType,
-      measurements,
-      brewDetails,
-      result,
-    };
-    showCalculation(result);
-    byId('save-recipe').disabled = false;
+    lastCalculation = dialInFrom(event.currentTarget);
+    showCalculation(lastCalculation.result);
   } catch (caught) {
     error.textContent = caught.message;
     error.hidden = false;
@@ -743,7 +741,8 @@ byId('dial-form').addEventListener('input', (event) => {
       targetStrengthForRecipeType(event.target.value).toFixed(2);
   }
   lastCalculation = null;
-  byId('save-recipe').disabled = true;
+  byId('result-placeholder').hidden = false;
+  byId('result-content').hidden = true;
 });
 
 byId('dial-further').addEventListener('click', () => {
@@ -756,15 +755,24 @@ byId('dial-further').addEventListener('click', () => {
   );
   byId('strength').value = '';
   lastCalculation = null;
-  byId('save-recipe').disabled = true;
   byId('strength').focus();
   showToast('Recommendation loaded. Measure the next shot’s strength.');
 });
 
 byId('save-recipe').addEventListener('click', () => {
-  if (!lastCalculation) return;
-  const { coffee, recipeType, measurements, brewDetails, result } =
-    lastCalculation;
+  const form = byId('dial-form');
+  if (!form.reportValidity()) return;
+  const error = byId('dial-error');
+  error.hidden = true;
+  let currentShot;
+  try {
+    currentShot = dialInFrom(form);
+  } catch (caught) {
+    error.textContent = caught.message;
+    error.hidden = false;
+    return;
+  }
+  const { coffee, recipeType, measurements, brewDetails, result } = currentShot;
   const savedAt = new Date().toISOString();
   const iteration = {
     id: globalThis.crypto?.randomUUID?.() ?? String(Date.now()),
@@ -787,7 +795,6 @@ byId('save-recipe').addEventListener('click', () => {
   byId('target-solids').value = '4.41';
   byId('result-placeholder').hidden = false;
   byId('result-content').hidden = true;
-  byId('save-recipe').disabled = true;
   lastCalculation = null;
   const wasEditing = editingIterationId !== null;
   editingIterationId = null;
