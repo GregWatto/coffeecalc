@@ -52,7 +52,12 @@ app.innerHTML = `
     </nav>
 
     <section class="view" id="view-dashboard" data-view-panel="dashboard">
-      <p class="view-intro">Currently assigned coffees</p>
+      <div class="section-heading">
+        <p class="view-intro">Currently assigned coffees</p>
+        <div class="toolbar">
+          <button class="button button-secondary" id="print-label" type="button">Print label</button>
+        </div>
+      </div>
       <div class="program-grid" id="program-grid"></div>
       <div class="empty-state" id="dashboard-empty" hidden>
         <span class="empty-icon" aria-hidden="true">◎</span>
@@ -153,13 +158,21 @@ app.innerHTML = `
       <div class="section-heading">
         <p class="view-intro">Saved recipes</p>
         <div class="toolbar">
-          <button class="button button-secondary" id="print-label" type="button">Print label</button>
           <button class="button button-secondary" id="import-button" type="button">Import</button>
           <input id="import-file" type="file" accept="application/json,.json" hidden />
           <button class="button button-secondary" id="export-button" type="button">Export</button>
         </div>
       </div>
+      <div class="recipe-search" id="recipe-search-wrap">
+        <label class="sr-only" for="recipe-search">Search saved coffees</label>
+        <input id="recipe-search" type="search" placeholder="Search saved coffees…" autocomplete="off" />
+        <small id="recipe-search-status" aria-live="polite"></small>
+      </div>
       <div class="recipe-list" id="recipe-list"></div>
+      <div class="empty-state" id="recipes-no-results" hidden>
+        <h3>No matching coffees</h3>
+        <p>Try a different coffee name.</p>
+      </div>
       <div class="empty-state" id="recipes-empty" hidden>
         <span class="empty-icon" aria-hidden="true">□</span>
         <h3>Your recipe log is empty</h3>
@@ -647,10 +660,10 @@ function createRecipeIteration(recipe, iteration, iterationNumber) {
 }
 
 function createRecipeCard(recipe) {
-  const card = document.createElement('article');
+  const card = document.createElement('details');
   card.className = 'recipe-card panel';
 
-  const heading = document.createElement('div');
+  const heading = document.createElement('summary');
   heading.className = 'recipe-group-heading';
   const title = document.createElement('h3');
   title.textContent = recipe.coffee;
@@ -678,15 +691,23 @@ function createRecipeCard(recipe) {
 
 function renderRecipes() {
   const list = byId('recipe-list');
-  list.replaceChildren();
-  [...state.recipes]
+  const query = recipeNameKey(byId('recipe-search').value);
+  const recipes = [...state.recipes]
+    .filter((recipe) => recipeNameKey(recipe.coffee).includes(query))
     .sort((a, b) =>
       String(b.iterations.at(-1)?.createdAt ?? b.id).localeCompare(
         String(a.iterations.at(-1)?.createdAt ?? a.id),
       ),
-    )
-    .forEach((recipe) => list.append(createRecipeCard(recipe)));
+    );
+  list.replaceChildren();
+  recipes.forEach((recipe) => list.append(createRecipeCard(recipe)));
+  byId('recipe-search-status').textContent = query
+    ? `${recipes.length} ${recipes.length === 1 ? 'coffee' : 'coffees'} found`
+    : '';
   byId('recipes-empty').hidden = state.recipes.length !== 0;
+  byId('recipe-search-wrap').hidden = state.recipes.length === 0;
+  byId('recipes-no-results').hidden =
+    state.recipes.length === 0 || recipes.length !== 0;
 }
 
 function persistAndRender() {
@@ -875,6 +896,8 @@ byId('import-file').addEventListener('change', async (event) => {
     event.currentTarget.value = '';
   }
 });
+
+byId('recipe-search').addEventListener('input', renderRecipes);
 
 document.addEventListener('click', (event) => {
   const target = event.target.closest('[data-view], [data-go]');

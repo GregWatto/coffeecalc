@@ -810,6 +810,62 @@ summary:focus-visible {
   min-width: 0;
 }
 
+.recipe-search {
+  margin-bottom: 1rem;
+}
+
+.recipe-search input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.75rem 1rem;
+  color: var(--navy);
+  background: white;
+  border: 1px solid var(--slate-200);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow);
+  outline: none;
+}
+
+.recipe-search input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 12%);
+}
+
+.recipe-search small {
+  display: block;
+  min-height: 1rem;
+  margin-top: 0.35rem;
+  color: var(--slate-500);
+  font-size: 0.68rem;
+}
+
+.recipe-group-heading {
+  position: relative;
+  padding-right: 2rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.recipe-group-heading::-webkit-details-marker {
+  display: none;
+}
+
+.recipe-group-heading::after {
+  position: absolute;
+  top: 50%;
+  right: 0.2rem;
+  color: var(--blue);
+  content: '›';
+  font-size: 1.6rem;
+  font-weight: 700;
+  transform: translateY(-50%);
+  transition: transform 150ms ease;
+}
+
+.recipe-card[open] > .recipe-group-heading::after {
+  transform: translateY(-50%) rotate(90deg);
+}
+
 .recipe-group-heading h3 {
   margin: 0;
   font-size: 1.2rem;
@@ -1138,8 +1194,8 @@ summary:focus-visible {
     overflow: hidden;
   }
 
-  .print-recipe + .print-recipe {
-    border-left: 1px dashed #777;
+  .print-recipe:first-child {
+    border-right: 1px dashed #777;
   }
 
   .print-program {
