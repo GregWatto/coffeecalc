@@ -7,6 +7,7 @@ import {
   findIteration,
   importState,
   loadState,
+  replaceAssignedIteration,
   saveState,
 } from './storage.js';
 
@@ -144,6 +145,18 @@ describe('recipe iterations', () => {
     addRecipeIteration(state, 'Single Origin', iteration('shot-2'));
 
     expect(state.recipes).toHaveLength(2);
+  });
+
+  it('moves current program assignments to a newly saved iteration', () => {
+    const state = createInitialState();
+    state.programs.Down = 'shot-1';
+    state.programs['Long Up'] = 'another-shot';
+
+    const updated = replaceAssignedIteration(state, 'shot-1', 'shot-2');
+
+    expect(updated).toBe(1);
+    expect(state.programs.Down).toBe('shot-2');
+    expect(state.programs['Long Up']).toBe('another-shot');
   });
 
   it('infers a single recipe when migrating an 8.5% target', () => {

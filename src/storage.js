@@ -133,6 +133,21 @@ export function addRecipeIteration(
   return recipe;
 }
 
+export function replaceAssignedIteration(
+  state,
+  previousIterationId,
+  nextIterationId,
+) {
+  let updatedPrograms = 0;
+  Object.keys(state.programs).forEach((programName) => {
+    if (String(state.programs[programName]) === String(previousIterationId)) {
+      state.programs[programName] = nextIterationId;
+      updatedPrograms += 1;
+    }
+  });
+  return updatedPrograms;
+}
+
 export function loadState(storage = window.localStorage) {
   try {
     const current = storage.getItem(STORAGE_KEY);

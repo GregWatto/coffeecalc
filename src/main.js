@@ -8,6 +8,7 @@ import {
   importState,
   loadState,
   recipeNameKey,
+  replaceAssignedIteration,
   saveState,
 } from './storage.js';
 
@@ -810,6 +811,11 @@ byId('save-recipe').addEventListener('click', () => {
     lastAssignedAt: null,
   };
   const recipe = addRecipeIteration(state, coffee, iteration, recipeType);
+  const wasEditing = editingIterationId !== null;
+  const updatedAssignments = wasEditing
+    ? replaceAssignedIteration(state, editingIterationId, iteration.id)
+    : 0;
+  if (updatedAssignments > 0) iteration.lastAssignedAt = savedAt;
   persistAndRender();
   byId('dial-form').reset();
   byId('target-strength').value = '9.30';
@@ -817,14 +823,15 @@ byId('save-recipe').addEventListener('click', () => {
   byId('result-placeholder').hidden = false;
   byId('result-content').hidden = true;
   lastCalculation = null;
-  const wasEditing = editingIterationId !== null;
   editingIterationId = null;
   byId('edit-context').hidden = true;
   showView('recipes');
   showToast(
-    wasEditing || recipe.iterations.length > 1
-      ? `${recipe.coffee} saved as iteration ${recipe.iterations.length}.`
-      : `${recipe.coffee} saved to your recipe log.`,
+    updatedAssignments > 0
+      ? `${recipe.coffee} saved as iteration ${recipe.iterations.length} and updated on the assigned program.`
+      : wasEditing || recipe.iterations.length > 1
+        ? `${recipe.coffee} saved as iteration ${recipe.iterations.length}.`
+        : `${recipe.coffee} saved to your recipe log.`,
   );
 });
 
