@@ -115,12 +115,8 @@
           "name": "staff_sessions_user_id_staff_users_id_fk",
           "tableFrom": "staff_sessions",
           "tableTo": "staff_users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -217,23 +213,17 @@
       "indexes": {
         "staff_users_username_normalized_unique": {
           "name": "staff_users_username_normalized_unique",
-          "columns": [
-            "username_normalized"
-          ],
+          "columns": ["username_normalized"],
           "isUnique": true
         },
         "staff_users_email_normalized_unique": {
           "name": "staff_users_email_normalized_unique",
-          "columns": [
-            "email_normalized"
-          ],
+          "columns": ["email_normalized"],
           "isUnique": true
         },
         "staff_users_single_admin_unique": {
           "name": "staff_users_single_admin_unique",
-          "columns": [
-            "role"
-          ],
+          "columns": ["role"],
           "isUnique": true,
           "where": "\"staff_users\".\"role\" = 'admin'"
         }
