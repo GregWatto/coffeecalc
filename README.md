@@ -18,7 +18,7 @@ Recipes and machine-program assignments are stored in the deployed site's D1 dat
 - Quick calculator for unsaved shots
 - Responsive and keyboard-accessible interface
 - Installable web-app manifest
-- Automated linting, tests, builds, and GitHub Pages deployment
+- Automated formatting, linting, tests, and production builds
 
 ## Start developing
 
@@ -60,18 +60,17 @@ src/storage.js          Local persistence, migration, and backups
 src/main.js             Interface and app state
 src/styles.css          Responsive visual system
 public/                 Web-app manifest and icon
-.github/workflows/      CI and GitHub Pages deployment
+.github/workflows/      Continuous integration checks
+.openai/hosting.json    Sites project and D1 binding
 ```
 
 ## Deploying
 
-The Pages workflow builds and deploys the site whenever `main` changes. In the repository settings, set **Pages → Build and deployment → Source** to **GitHub Actions** once. Pull requests run the CI workflow without deploying.
-
-Because Vite uses a relative asset base, the build works at both a custom domain and a repository Pages path.
+CoffeeCalc requires a server-capable runtime for its authentication, state API, and D1 database. Deploy it through Sites using `.openai/hosting.json`; a static host such as GitHub Pages cannot execute the required routes. Pull requests run the CI workflow without deploying.
 
 ## Data and privacy
 
-No backend or account is required. Recipe data remains in the current browser profile unless the user exports it. Clearing site data removes recipes, so keep JSON backups when the log matters.
+CoffeeCalc requires an authenticated staff account. Recipe data is stored in the deployed site's D1 database and cached in the current browser profile for offline use. Clearing site data removes only that browser's cache; JSON backups remain useful for portability and recovery.
 
 The original prototype used `coffeeRecipes` and `coffeePrograms` local-storage keys. This version reads those keys automatically so existing browser data continues to work. Older recipes remain valid; grind size and shot time appear as not recorded until a new dial-in supplies them.
 

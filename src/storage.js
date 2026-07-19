@@ -1,4 +1,5 @@
 export const STORAGE_KEY = 'coffeecalc:v1';
+export const SYNC_PENDING_KEY = 'coffeecalc:sync-pending';
 
 export const PROGRAM_NAMES = ['Long Up', 'Down', 'Long Down'];
 export const RECIPE_TYPES = ['single', 'blend'];
@@ -172,8 +173,25 @@ export function loadState(storage = window.localStorage) {
   return createInitialState();
 }
 
-export function saveState(state, storage = window.localStorage) {
+export function saveState(
+  state,
+  storage = window.localStorage,
+  { synced = false } = {},
+) {
   storage.setItem(STORAGE_KEY, JSON.stringify(normaliseState(state)));
+  if (synced) {
+    storage.removeItem(SYNC_PENDING_KEY);
+  } else {
+    storage.setItem(SYNC_PENDING_KEY, new Date().toISOString());
+  }
+}
+
+export function isStateSyncPending(storage = window.localStorage) {
+  return storage.getItem(SYNC_PENDING_KEY) !== null;
+}
+
+export function markStateSynced(storage = window.localStorage) {
+  storage.removeItem(SYNC_PENDING_KEY);
 }
 
 export function exportState(state) {

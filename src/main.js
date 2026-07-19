@@ -6,7 +6,9 @@ import {
   exportState,
   findIteration,
   importState,
+  isStateSyncPending,
   loadState,
+  markStateSynced,
   recipeNameKey,
   replaceAssignedIteration,
   saveState,
@@ -236,10 +238,15 @@ function queueOnlineSave() {
         body: JSON.stringify({ state: snapshot }),
       });
       if (!response.ok) throw new Error('Online save failed.');
+      if (exportState(state) === exportState(snapshot)) {
+        markStateSynced();
+      }
       setSaveStatus('online', 'Saved online');
+      return true;
     })
     .catch(() => {
       setSaveStatus('offline', 'Saved on this device · offline');
+      return false;
     });
 
   return onlineSaveQueue;
@@ -247,19 +254,25 @@ function queueOnlineSave() {
 
 async function initialiseOnlineState() {
   try {
+    if (isStateSyncPending()) {
+      await queueOnlineSave();
+      return;
+    }
+
     const response = await fetch('/api/state', { cache: 'no-store' });
     if (!response.ok) throw new Error('Online storage is unavailable.');
     const remote = await response.json();
 
     if (remote.state) {
       state = importState(JSON.stringify(remote.state));
-      saveState(state);
+      saveState(state, window.localStorage, { synced: true });
       renderDashboard();
       renderRecipes();
       setSaveStatus('online', 'Saved online');
       return;
     }
 
+    saveState(state);
     await queueOnlineSave();
   } catch {
     setSaveStatus('offline', 'Saved on this device · offline');

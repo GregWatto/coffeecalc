@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   STORAGE_KEY,
+  SYNC_PENDING_KEY,
   addRecipeIteration,
   createInitialState,
   exportState,
   findIteration,
   importState,
+  isStateSyncPending,
   loadState,
+  markStateSynced,
   replaceAssignedIteration,
   saveState,
 } from './storage.js';
@@ -16,6 +19,7 @@ function createStorage() {
   return {
     getItem: (key) => values.get(key) ?? null,
     setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
   };
 }
 
@@ -60,7 +64,25 @@ describe('state persistence', () => {
     saveState(state, storage);
 
     expect(JSON.parse(storage.getItem(STORAGE_KEY))).toEqual(state);
+    expect(isStateSyncPending(storage)).toBe(true);
     expect(loadState(storage)).toEqual(state);
+  });
+
+  it('clears the pending marker after the state is synced', () => {
+    const state = createInitialState();
+    saveState(state, storage);
+
+    markStateSynced(storage);
+
+    expect(storage.getItem(SYNC_PENDING_KEY)).toBeNull();
+    expect(isStateSyncPending(storage)).toBe(false);
+  });
+
+  it('stores remote state without marking it as a local edit', () => {
+    saveState(createInitialState(), storage, { synced: true });
+
+    expect(storage.getItem(STORAGE_KEY)).not.toBeNull();
+    expect(isStateSyncPending(storage)).toBe(false);
   });
 
   it('migrates flat recipes and groups duplicate coffee names as iterations', () => {
